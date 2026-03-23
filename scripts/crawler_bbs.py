@@ -1,4 +1,5 @@
 import os
+import sys
 import json
 import requests
 import re
@@ -12,6 +13,9 @@ from urllib.parse import urljoin
 
 # 加载环境变量
 load_dotenv()
+
+sys.stdout.reconfigure(encoding='utf-8')
+sys.stderr.reconfigure(encoding='utf-8')
 
 # 基础URL
 BASE_URL = "https://www.tgb.cn"
