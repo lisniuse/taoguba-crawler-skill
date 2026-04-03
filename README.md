@@ -1,76 +1,110 @@
-# Taoguba Crawler - 淘股吧爬虫
+# taoguba-crawler-skill
 
-爬取[淘股吧](https://www.tgb.cn)文章内容，提取楼主主帖及跟帖，下载图片并生成 HTML 文件。
+淘股吧抓取与复盘项目。当前已经改造成可长期运行的定时任务：
 
-## 功能
+- 每天固定时间执行一次，默认 19:00
+- 抓取淘股吧论坛或首页推荐
+- 生成 `output/` 下的 JSON、HTML 和最终发送用 Markdown
+- 调用 DashScope 兼容接口做中文复盘分析
+- 通过 picoclaw 推送到飞书
+- 支持 `testsend` / `testsend-live`
+- 支持 `deploy.py` 部署到远端
+- 支持 PM2 托管主进程
 
-- **BBS 板块爬取** (`crawler_bbs.py`) — 爬取论坛板块文章列表（HTML 解析）
-- **首页推荐爬取** (`crawler_home.py`) — 爬取首页推荐文章（JSON API）
-- 自动提取楼主主帖 + 楼主跟帖内容
-- 下载文章图片并以 base64 嵌入 HTML
-- 输出 JSON（文章列表）和 HTML（完整内容）
+## 目录
 
-## 环境要求
+- [main.py](D:/dev/github/taoguba-crawler-skill/main.py): 每日定时主进程
+- [app_common.py](D:/dev/github/taoguba-crawler-skill/app_common.py): `.env`、代理、通知、日志公共能力
+- [scripts/taoguba_report.py](D:/dev/github/taoguba-crawler-skill/scripts/taoguba_report.py): 报告生成与通知发送
+- [scripts/crawler_bbs.py](D:/dev/github/taoguba-crawler-skill/scripts/crawler_bbs.py): 股吧论坛抓取
+- [scripts/crawler_home.py](D:/dev/github/taoguba-crawler-skill/scripts/crawler_home.py): 首页推荐抓取
+- [deploy.py](D:/dev/github/taoguba-crawler-skill/deploy.py): 上传部署脚本
+- [ecosystem.config.js](D:/dev/github/taoguba-crawler-skill/ecosystem.config.js): PM2 配置
 
-- Python 3.8+
+## 环境变量
+
+复制 [`.env.example`](D:/dev/github/taoguba-crawler-skill/.env.example) 为 `.env`，至少配置这些项：
+
+```env
+COOKIE=你的淘股吧 Cookie
+SCRAPE_TIME=19:00
+TAOGUBA_SOURCE=bbs
+
+DASHSCOPE_API_KEY=你的 DashScope Key
+DASHSCOPE_BASE_URL=https://coding.dashscope.aliyuncs.com/v1
+DASHSCOPE_MODEL=qwen3.5-plus
+
+PICOCLAW_EXE=/home/nuonuo/picoclaw-linux-amd64
+PICOCLAW_CHANNEL=feishu
+```
+
+可选：
+
+```env
+HTTP_PROXY=127.0.0.1:2334
+HTTPS_PROXY=127.0.0.1:2334
+```
 
 ## 安装
 
 ```bash
-git clone https://github.com/your-username/Taoguba-crawler.git
-cd Taoguba-crawler
-pip install -r requirements.txt
+python -m pip install -r requirements.txt
 ```
 
-## 配置
+建议使用虚拟环境：
 
-在项目根目录创建 `.env` 文件：
-
-```env
-COOKIE=你的淘股吧Cookie
-USER_AGENT=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36
+```bash
+python -m venv .venv
+.venv/bin/python -m pip install -r requirements.txt
 ```
-
-> 登录淘股吧后，从浏览器开发者工具中复制 Cookie。
 
 ## 使用
 
-```bash
-# 爬取 BBS 板块
-python crawler_bbs.py
+主进程：
 
-# 爬取首页推荐
-python crawler_home.py
+```bash
+python main.py
+```
+
+复用最近一次报告发送测试消息：
+
+```bash
+python main.py testsend
+```
+
+实时抓取并立即发送：
+
+```bash
+python main.py testsend-live
 ```
 
 ## 输出
 
-所有结果保存在 `output/` 目录下：
+- `output/`: 爬虫生成的 JSON、HTML，以及最终发送给渠道的 Markdown
+- `output/latest_report.md`: 最近一次发送用的 Markdown
+- `output/report-YYYYMMDD-HHMMSS.md`: 按时间归档的发送内容
+- `logs/`: 主进程日志、PM2 日志
+- `state/latest_report.json`: 最近一次完整报告
+- `state/main_state.json`: 主进程每日执行状态
 
-| 文件 | 说明 |
-|------|------|
-| `bbs_YYYY-MM-DD.json` | BBS 文章列表 |
-| `bbs_YYYY-MM-DD_HHMMSS.html` | BBS 文章内容（含图片） |
-| `home_YYYY-MM-DD.json` | 首页文章列表 |
-| `home_YYYY-MM-DD_HHMMSS.html` | 首页文章内容（含图片） |
+## 部署
 
-## 项目结构
+`.env` 配好 `UPLOAD_HOST / UPLOAD_USER / UPLOAD_PASSWORD` 后执行：
 
-```
-Taoguba-crawler/
-├── crawler_bbs.py       # BBS 板块爬虫
-├── crawler_home.py      # 首页推荐爬虫
-├── requirements.txt     # Python 依赖
-├── .env                 # 配置文件（不要提交到仓库）
-└── output/              # 输出目录
+```bash
+python deploy.py
 ```
 
-## 注意事项
+默认部署到：
 
-- 请求间隔 0.5~1 秒，避免频繁访问被封
-- `.env` 文件包含敏感信息，已在 `.gitignore` 中排除
-- 本项目仅供学习交流使用
+```text
+/home/nuonuo/app/taoguba-crawler-skill
+```
 
-## License
+## PM2
 
-MIT
+```bash
+cd /home/nuonuo/app/taoguba-crawler-skill
+pm2 start ecosystem.config.js
+pm2 save
+```

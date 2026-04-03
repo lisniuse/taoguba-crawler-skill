@@ -1,2 +1,6 @@
 .env
-scripts/output/
+.venv/
+__pycache__/
+logs/
+state/
+output/
